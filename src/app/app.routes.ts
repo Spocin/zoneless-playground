@@ -10,7 +10,7 @@ export const appRoutes = {
         label: 'Async validator on form',
         description: `
             The goal of this project is to create async validator on a whole form.
-            The validator should be triggered when value of the target FormControl changes
+            The validator should be triggered when value of the target FormControl changes.
             but also when manually when we want to save the form.
             
             The target FormControl can be disabled.
