@@ -1,4 +1,4 @@
-import { Route, Routes } from '@angular/router';
+import { Route } from '@angular/router';
 
 export interface AppRoute extends Route {
     label: string
@@ -20,6 +20,6 @@ export const appRoutes = {
     }
 } as const satisfies Record<string, AppRoute>;
 
-export const routes: Routes = [
+export const routes: AppRoute[] = [
     appRoutes.asyncValidatorOnForm
 ];
