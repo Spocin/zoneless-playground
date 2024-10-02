@@ -10,7 +10,7 @@ import { RouterOutlet } from '@angular/router';
 
     <router-outlet />
   `,
-  styles: [],
+  styles: ``,
 })
 export class AppComponent {
   title = 'zoneless-playground';

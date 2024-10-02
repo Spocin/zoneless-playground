@@ -10,6 +10,7 @@
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
+          "changeDetection": "OnPush",
           "inlineTemplate": true,
           "inlineStyle": true,
           "style": "scss",
@@ -47,9 +48,7 @@
             "outputPath": "dist/zoneless-playground",
             "index": "src/index.html",
             "browser": "src/main.ts",
-            "polyfills": [
-              "zone.js"
-            ],
+            "polyfills": [],
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
             "assets": [
