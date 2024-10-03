@@ -11,7 +11,7 @@ import {
   Validators,
 } from "@angular/forms";
 import { interval, lastValueFrom, map, takeWhile, tap } from "rxjs";
-import { AsyncPipe, JsonPipe } from "@angular/common";
+import { AsyncPipe, JsonPipe, NgClass } from "@angular/common";
 
 @Component({
   selector: 'app-async-validator-on-form',
@@ -25,6 +25,7 @@ import { AsyncPipe, JsonPipe } from "@angular/common";
 	AsyncPipe,
 	MatError,
 	JsonPipe,
+	NgClass,
   ],
   template: `
       <form class="form">
@@ -76,7 +77,13 @@ import { AsyncPipe, JsonPipe } from "@angular/common";
           </div>
 
           <div class="debug-panel__stream">
-              <span>Calls</span>
+              <span>
+				  @let areCallsPending = isAnyCallPending$();
+				  Calls
+					<div class="debug-panel__stream__status" title="{{ areCallsPending ? 'Calls pending' : 'No pending calls' }}"
+						 [ngClass]="{ 'debug-panel__stream__status--pending': areCallsPending}">
+					</div>
+			  </span>
               @for (call of debugStream$(); track $index) {
                   <code class="debug-panel__stream__record">{{ call | json }}</code>
               }
@@ -145,9 +152,24 @@ import { AsyncPipe, JsonPipe } from "@angular/common";
         display: flex;
         flex-flow: column nowrap;
         gap: 0.5rem;
-
+		
         &__record {
           font-size: small;
+        }
+
+        &__status {
+          display: inline-block;
+          width: 15px;
+          aspect-ratio: 1 / 1;
+
+          border-radius: 50%;
+          background-color: red;
+		  
+		  vertical-align: middle;
+
+          &--pending {
+            background-color: green;
+          }
         }
       }
     }
@@ -164,16 +186,6 @@ export default class AsyncValidatorOnFormComponent {
 	email: this.fb.control('', [Validators.required, Validators.email]),
 	asyncValidateField: this.fb.control({value: '', disabled: true}, null, [this.someFieldValidator()])
   }, {asyncValidators: [this.wholeFormAsyncValidator()]});
-  /* DEBUG ONLY THINGS FROM HERE ON*/
-  private currCallIdx = 0;
-  private calls$ = signal<ValidatorCall[]>([]);
-  private messages$ = signal<SimpleMessage[]>([]);
-  protected debugStream$ = computed(() => {
-	const stream = [...this.calls$(), ...this.messages$()];
-	stream.sort((a, b) => a.timestamp - b.timestamp);
-
-	return stream;
-  });
 
   protected async onSave() {
 	const wholeFormValidationRes = await this.wholeFormAsyncValidator()(this.form);
@@ -214,11 +226,11 @@ export default class AsyncValidatorOnFormComponent {
    */
   private someFieldValidator(): AsyncValidatorFn {
 	return async (control: AbstractControl): Promise<ValidationErrors | null> => {
-	  const validatorCall: ValidatorCall = {
+	  const validatorCall = new ValidatorCall({
 		timestamp: Date.now(),
 		callIdx: this.currCallIdx,
 		message: '',
-	  };
+	  });
 
 	  this.addCall(validatorCall);
 	  this.currCallIdx += 1;
@@ -252,14 +264,32 @@ export default class AsyncValidatorOnFormComponent {
 	}
   }
 
-  private addCall(call: ValidatorCall) {
+  /* DEBUG ONLY THINGS FROM HERE ON*/
+  private currCallIdx = 0;
+  private calls$ = signal<IValidatorCall[]>([]);
+  private messages$ = signal<ISimpleMessage[]>([]);
+
+  protected debugStream$ = computed(() => {
+	const stream: MessageTypes[] = [...this.calls$(), ...this.messages$()];
+	stream.sort((a, b) => a.timestamp - b.timestamp);
+
+	return stream;
+  });
+
+  protected isAnyCallPending$ = computed(() => {
+	return this.debugStream$()
+		.filter((el): el is ValidatorCall => el instanceof ValidatorCall)
+		.some(el => el.result === undefined)
+  });
+
+  private addCall(call: IValidatorCall) {
 	this.calls$.update(calls => {
 	  calls.push(call);
 	  return calls;
 	});
   }
 
-  private updateCall(call: ValidatorCall, updates: Partial<ValidatorCall>): ValidatorCall {
+  private updateCall(call: IValidatorCall, updates: Partial<IValidatorCall>): IValidatorCall {
 	Object.assign(call, updates);
 	this.calls$.update((calls) => [...calls]);
 	return call;
@@ -267,7 +297,7 @@ export default class AsyncValidatorOnFormComponent {
 
   private addMessage(message: string) {
 	this.messages$.update((messages) => {
-	  messages.push({timestamp: Date.now(), message});
+	  messages.push(new SimpleMessage({timestamp: Date.now(), message}));
 	  return messages;
 	});
   }
@@ -277,12 +307,34 @@ export interface Message {
   timestamp: number
 }
 
-export interface ValidatorCall extends Message {
+export interface IValidatorCall extends Message {
   callIdx: number
   message: string
   result?: ValidationErrors | null
 }
 
-export interface SimpleMessage extends Message {
+export interface ISimpleMessage extends Message {
   message: string
+}
+
+export type MessageTypes = ValidatorCall | SimpleMessage;
+
+export class ValidatorCall implements IValidatorCall {
+    callIdx!: number;
+    message!: string;
+    result?: ValidationErrors | null | undefined;
+    timestamp!: number;
+
+	constructor(dto: IValidatorCall) {
+	  Object.assign(this, dto);
+	}
+}
+
+export class SimpleMessage implements ISimpleMessage {
+    message!: string;
+    timestamp!: number;
+
+	constructor(dto: ISimpleMessage) {
+	  Object.assign(this, dto);
+	}
 }
