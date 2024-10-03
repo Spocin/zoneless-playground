@@ -75,10 +75,10 @@ import { AsyncPipe, JsonPipe } from "@angular/common";
               <span class="debug-panel__item__content"> {{ saving$() }}</span>
           </div>
 
-          <div class="debug-panel__calls">
+          <div class="debug-panel__stream">
               <span>Calls</span>
               @for (call of debugStream$(); track $index) {
-                  <code>{{ call | json }}</code>
+                  <code class="debug-panel__stream__record">{{ call | json }}</code>
               }
           </div>
       </div>
@@ -141,10 +141,14 @@ import { AsyncPipe, JsonPipe } from "@angular/common";
         }
       }
       
-      &__calls {
+      &__stream {
         display: flex;
         flex-flow: column nowrap;
         gap: 0.5rem;
+        
+        &__record {
+          font-size: small;
+        }
       }
     }
   `,
