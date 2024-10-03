@@ -3,187 +3,274 @@ import { MatButton } from "@angular/material/button";
 import { MatError, MatFormField, MatLabel } from "@angular/material/form-field";
 import { MatInput } from "@angular/material/input";
 import {
-    AbstractControl,
-    AsyncValidatorFn,
-    FormBuilder,
-    ReactiveFormsModule,
-    ValidationErrors,
-    Validators,
+  AbstractControl,
+  AsyncValidatorFn,
+  FormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators,
 } from "@angular/forms";
-import { BehaviorSubject, interval, lastValueFrom, map, takeWhile, tap } from "rxjs";
+import { interval, lastValueFrom, map, takeWhile, tap } from "rxjs";
 import { AsyncPipe, JsonPipe } from "@angular/common";
 
 @Component({
-    selector: 'app-async-validator-on-form',
-    standalone: true,
-    imports: [
-        MatButton,
-        MatFormField,
-        MatLabel,
-        MatInput,
-        ReactiveFormsModule,
-        AsyncPipe,
-        MatError,
-        JsonPipe,
-    ],
-    template: `
-        <div class="toolbar">
-            <span class="toolbar__debug">{{ debug$ | async }}</span>
-            <button mat-raised-button [disabled]="!form.valid || saving$()" (click)="onSave()">Save form!</button>
-        </div>
+  selector: 'app-async-validator-on-form',
+  standalone: true,
+  imports: [
+    MatButton,
+    MatFormField,
+    MatLabel,
+    MatInput,
+    ReactiveFormsModule,
+    AsyncPipe,
+    MatError,
+    JsonPipe,
+  ],
+  template: `
+      <form class="form">
+          <div class="form__toolbar">
+              <button mat-raised-button [disabled]="!form.valid || saving$()" (click)="onSave()">Save form!</button>
+          </div>
 
-        <form class="form">
-            <mat-form-field class="form__field">
-                <mat-label>First name</mat-label>
-                <input matInput [formControl]="form.controls.firstName">
-                <mat-error/>
-            </mat-form-field>
+          <mat-form-field class="form__field">
+              <mat-label>First name</mat-label>
+              <input matInput [formControl]="form.controls.firstName">
+              <mat-error/>
+          </mat-form-field>
 
-            <mat-form-field class="form__field">
-                <mat-label>Middle name</mat-label>
-                <input matInput [formControl]="form.controls.middleName">
-                <mat-error/>
-            </mat-form-field>
+          <mat-form-field class="form__field">
+              <mat-label>Middle name</mat-label>
+              <input matInput [formControl]="form.controls.middleName">
+              <mat-error/>
+          </mat-form-field>
 
-            <mat-form-field class="form__field">
-                <mat-label>Last name</mat-label>
-                <input matInput [formControl]="form.controls.lastName">
-                <mat-error/>
-            </mat-form-field>
+          <mat-form-field class="form__field">
+              <mat-label>Last name</mat-label>
+              <input matInput [formControl]="form.controls.lastName">
+              <mat-error/>
+          </mat-form-field>
 
-            <mat-form-field class="form__field">
-                <mat-label>Email</mat-label>
-                <input matInput [formControl]="form.controls.email">
-                <mat-error/>
-            </mat-form-field>
+          <mat-form-field class="form__field">
+              <mat-label>Email</mat-label>
+              <input matInput [formControl]="form.controls.email">
+              <mat-error/>
+          </mat-form-field>
 
-            <mat-form-field class="form__field form__field--strangeOne">
-                <mat-label>Async validate field</mat-label>
-                <input matInput [formControl]="form.controls.asyncValidateField">
-                <mat-error/>
-            </mat-form-field>
+          <mat-form-field class="form__field form__field--strangeOne">
+              <mat-label>Async validate field</mat-label>
+              <input matInput [formControl]="form.controls.asyncValidateField">
+              <mat-error/>
+          </mat-form-field>
+      </form>
 
-            @if (form.errors) {
-                <span>Form errors: {{ form.errors | json }}</span>
-            }
-        </form>
-    `,
-    styles: `
-      :host {
-        padding: 0.5rem 0;
+      <div class="debug-panel">
+          <h4 class="debug-panel__title">Debug panel</h4>
 
-        display: flex;
-        flex-flow: column wrap;
-        gap: 2rem;
-      }
+          <div class="debug-panel__item">
+              <span class="debug-panel__item__label">Saving$:&nbsp;</span>
+              <span class="debug-panel__item__content"> {{ saving$() }}</span>
+          </div>
 
-      .toolbar {
+          <div class="debug-panel__calls">
+              <span>Calls</span>
+              @for (call of calls$(); track $index) {
+                  <code>{{ call | json }}</code>
+              }
+          </div>
+      </div>
+  `,
+  styles: `
+    :host {
+      padding: 0.5rem 0;
+
+      display: flex;
+      flex-flow: column wrap;
+      gap: 2rem;
+
+      flex: 1 1 auto;
+    }
+
+    .form {
+      display: flex;
+      flex-flow: row wrap;
+      gap: 1rem;
+
+      &__toolbar {
+        flex-basis: 100%;
+
         display: flex;
         flex-flow: row nowrap;
         align-content: center;
-        justify-content: space-between;
+        justify-content: flex-end;
       }
 
-      .form {
-        display: flex;
-        flex-flow: row wrap;
-        gap: 1rem;
+      &__field {
+        flex: 1 1 40%;
 
-        &__field {
-          flex: 1 1 40%;
-
-          &--strangeOne {
-            flex-basis: 100%;
-          }
+        &--strangeOne {
+          flex-basis: 100%;
         }
       }
-    `,
-    changeDetection: ChangeDetectionStrategy.OnPush
+    }
+
+    .debug-panel {
+      display: flex;
+      flex-flow: column nowrap;
+      gap: 1rem;
+
+      flex: 1 1 auto;
+      border-radius: 10px;
+      padding: 1rem;
+
+      background-color: color-mix(in srgb, var(--mat-app-background-color), #000 5%);
+
+      &__title {
+        margin-bottom: 1rem;
+      }
+
+      &__item {
+        &__content {
+          font-weight: bold;
+        }
+      }
+      
+      &__calls {
+        display: flex;
+        flex-flow: column nowrap;
+        gap: 0.5rem;
+      }
+    }
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export default class AsyncValidatorOnFormComponent {
-    private readonly fb = inject(FormBuilder).nonNullable;
+  private readonly fb = inject(FormBuilder).nonNullable;
 
-    protected form = this.fb.group({
-        firstName: this.fb.control('', Validators.required),
-        middleName: '',
-        lastName: this.fb.control('', Validators.required),
-        email: this.fb.control('', [Validators.required, Validators.email]),
-        asyncValidateField: this.fb.control({value: '', disabled: true}, null, [this.someFieldValidator()])
-    }, {asyncValidators: [this.wholeFormAsyncValidator()]});
+  protected form = this.fb.group({
+    firstName: this.fb.control('', Validators.required),
+    middleName: '',
+    lastName: this.fb.control('', Validators.required),
+    email: this.fb.control('', [Validators.required, Validators.email]),
+    asyncValidateField: this.fb.control({value: '', disabled: true}, null, [this.someFieldValidator()])
+  }, {asyncValidators: [this.wholeFormAsyncValidator()]});
 
-    protected saving$ = signal(false);
-    protected debug$ = new BehaviorSubject('...debug...');
+  protected saving$ = signal(false);
 
-    private calls = 0;
+  protected async onSave() {
+    const wholeFormValidationRes = await this.wholeFormAsyncValidator()(this.form);
+    console.log(`Form has been validated to with result: ${JSON.stringify(wholeFormValidationRes)}`);
 
-    protected async onSave() {
-        const wholeFormValidationRes = await this.wholeFormAsyncValidator()(this.form);
-        console.log(`Form has been validated to with result: ${JSON.stringify(wholeFormValidationRes)}`);
-
-        if (wholeFormValidationRes) {
-            this.form.setErrors(wholeFormValidationRes);
-        }
+    if (wholeFormValidationRes) {
+      this.form.setErrors(wholeFormValidationRes);
     }
+  }
 
-    /**
-     * Validates {@link asyncValidateField};
-     * @private
-     */
-    private wholeFormAsyncValidator(): AsyncValidatorFn {
-        /*TODO No switchMap mechanic on this call*/
+  /**
+   * Validates {@link asyncValidateField};
+   * @private
+   */
+  private wholeFormAsyncValidator(): AsyncValidatorFn {
+    /*TODO No switchMap mechanic on this call*/
 
-        return async (control: AbstractControl): Promise<ValidationErrors | null> => {
-            //Couldn't figure out better way to keep type system. It is loose end.
-            const asyncValidateField = (control as unknown as typeof this.form).controls.asyncValidateField;
+    return async (control: AbstractControl): Promise<ValidationErrors | null> => {
+      //Couldn't figure out better way to keep type system. It is loose end.
+      const asyncValidateField = (control as unknown as typeof this.form).controls.asyncValidateField;
 
-            const validationRes: ValidationErrors | null = await this.someFieldValidator()(asyncValidateField);
+      const validationRes: ValidationErrors | null = await this.someFieldValidator()(asyncValidateField);
 
-            if (!validationRes) {
-                return null;
-            }
+      if (!validationRes) {
+        return null;
+      }
 
-            console.log(`Validation of form returned: ${JSON.stringify(validationRes)}`);
-            console.log(`Field that was used to validate shouldn't have errors set`, asyncValidateField.errors);
+      this.addCall({ callIdx: -1, message: `Validation of form returned: ${JSON.stringify(validationRes)}` });
+      this.addCall({
+        callIdx: -1,
+        message: `Field that was used to validate shouldn't have errors set. Errors: ${JSON.stringify(asyncValidateField.errors)}`
+      });
 
-            return validationRes;
-        }
+      return validationRes;
     }
+  }
 
-    /**
-     * Validates some control for 5 seconds.
-     * @private
-     */
-    private someFieldValidator(): AsyncValidatorFn {
-        return async (control: AbstractControl): Promise<ValidationErrors | null> => {
-            const call = this.calls;
-            this.calls += 1;
+  /**
+   * Validates some control for 5 seconds.
+   * @private
+   */
+  private someFieldValidator(): AsyncValidatorFn {
+    return async (control: AbstractControl): Promise<ValidationErrors | null> => {
+      const validatorCall: ValidatorCall = {
+        callIdx: this.currCallIdx,
+        message: '',
+      };
 
-            this.logDebug('Validating...');
+      this.addCall(validatorCall);
+      this.currCallIdx += 1;
 
-            let secondsToWait = 5;
-            const sleeper$ = interval(1000)
-                .pipe(
-                    map(() => secondsToWait),
-                    tap((count) => this.logDebug(`Waiting ${count} seconds...`)),
-                    tap(() => secondsToWait -= 1),
-                    takeWhile((count) => count !== 0)
-                );
+      let secondsToWait = 5;
+      const sleeper$ = interval(1000)
+        .pipe(
+          map(() => secondsToWait),
+          tap((count) => this.updateCall(validatorCall,{ message: `Waiting ${count} seconds...`})),
+          tap(() => secondsToWait -= 1),
+          takeWhile((count) => count !== 0)
+        );
 
-            await lastValueFrom(sleeper$);
+      await lastValueFrom(sleeper$);
 
-            this.logDebug('Validated! No errors');
+      //Mock some validation fail
+      if (validatorCall.callIdx === 7 || validatorCall.callIdx == 10) {
+        this.updateCall(validatorCall,{
+          message: '',
+          result: { error: `error on call: ${validatorCall.callIdx}` },
+        });
+      } else {
+        validatorCall.result = null;
+        this.updateCall(validatorCall,{
+          message: '',
+          result: null,
+        });
+      }
 
-            //Mock some validation fail
-            if (call === 7 || call == 10) {
-                return { error: `error ${call}` };
-            }
-
-            return null;
-        }
+      return validatorCall.result;
     }
+  }
 
-    private logDebug(message: string) {
-        console.log(message);
-        this.debug$.next(message);
-    }
+  /* DEBUG ONLY THINGS FROM HERE ON*/
+  private currCallIdx = 0;
+  protected calls$ = signal<ValidatorCall[]>([]);
+
+  private addCall(call: ValidatorCall) {
+    this.calls$.update(calls => {
+      if (calls.length >= 5) {
+        calls.shift();
+      }
+
+      calls.push(call);
+      return calls;
+    });
+  }
+
+  private updateCall(call: ValidatorCall, updates: Partial<ValidatorCall>) {
+    this.calls$.update((calls) => {
+      const callsCp = calls;
+      let foundIdx = calls.findIndex((el) => el.callIdx === call.callIdx);
+
+      if (foundIdx === -1) {
+        throw new Error("Such call index does not exist!");
+      }
+
+      callsCp[foundIdx] = {
+        ...callsCp[foundIdx],
+        ...updates,
+      }
+
+      return [...callsCp];
+    });
+  }
+}
+
+export interface ValidatorCall {
+  callIdx: number
+  message: string
+  result?: ValidationErrors | null
 }
