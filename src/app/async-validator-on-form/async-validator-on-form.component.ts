@@ -80,12 +80,14 @@ import { AsyncPipe, JsonPipe, NgClass } from "@angular/common";
               <span>
 				  @let areCallsPending = isAnyCallPending$();
 				  Calls
-					<div class="debug-panel__stream__status" title="{{ areCallsPending ? 'Calls pending' : 'No pending calls' }}"
-						 [ngClass]="{ 'debug-panel__stream__status--pending': areCallsPending}">
+					<div class="debug-panel__stream__status"
+                         title="{{ areCallsPending ? 'Calls pending' : 'No pending calls' }}"
+                         [ngClass]="{ 'debug-panel__stream__status--pending': areCallsPending}">
 					</div>
 			  </span>
-              @for (call of debugStream$(); track $index) {
-                  <code class="debug-panel__stream__record">{{ call | json }}</code>
+              @for (call of debugStream$(); let ev = $even; track $index) {
+                  <code class="debug-panel__stream__record"
+                        [ngClass]="{ 'debug-panel__stream__record--even': ev }">{{ call | json }}</code>
               }
           </div>
       </div>
@@ -154,7 +156,12 @@ import { AsyncPipe, JsonPipe, NgClass } from "@angular/common";
         gap: 0.5rem;
 		
         &__record {
+		  padding-left: 5px;
           font-size: small;
+		  
+		  &--even {
+            background-color: color-mix(in srgb, var(--mat-app-background-color), #000 10%);
+		  }
         }
 
         &__status {
