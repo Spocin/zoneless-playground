@@ -61,6 +61,10 @@ import { AsyncPipe, JsonPipe } from "@angular/common";
               <input matInput [formControl]="form.controls.asyncValidateField">
               <mat-error/>
           </mat-form-field>
+
+          @if (form.errors) {
+              <span>{{ form.errors | json }}</span>
+          }
       </form>
 
       <div class="debug-panel">
@@ -84,7 +88,7 @@ import { AsyncPipe, JsonPipe } from "@angular/common";
       padding: 0.5rem 0;
 
       display: flex;
-      flex-flow: column wrap;
+      flex-flow: column nowrap;
       gap: 2rem;
 
       flex: 1 1 auto;
@@ -123,6 +127,9 @@ import { AsyncPipe, JsonPipe } from "@angular/common";
       padding: 1rem;
 
       background-color: color-mix(in srgb, var(--mat-app-background-color), #000 5%);
+      
+      max-height: 55vh;
+      overflow-y: auto;
 
       &__title {
         margin-bottom: 1rem;
