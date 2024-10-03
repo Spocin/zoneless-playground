@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatButton } from "@angular/material/button";
 import { MatError, MatFormField, MatLabel } from "@angular/material/form-field";
 import { MatInput } from "@angular/material/input";
@@ -10,7 +10,7 @@ import {
   ValidationErrors,
   Validators,
 } from "@angular/forms";
-import { interval, lastValueFrom, map, takeWhile, tap } from "rxjs";
+import { interval, lastValueFrom, map, takeWhile, tap, timestamp } from "rxjs";
 import { AsyncPipe, JsonPipe } from "@angular/common";
 
 @Component({
@@ -73,7 +73,7 @@ import { AsyncPipe, JsonPipe } from "@angular/common";
 
           <div class="debug-panel__calls">
               <span>Calls</span>
-              @for (call of calls$(); track $index) {
+              @for (call of debugStream$(); track $index) {
                   <code>{{ call | json }}</code>
               }
           </div>
@@ -182,11 +182,8 @@ export default class AsyncValidatorOnFormComponent {
         return null;
       }
 
-      this.addCall({ callIdx: -1, message: `Validation of form returned: ${JSON.stringify(validationRes)}` });
-      this.addCall({
-        callIdx: -1,
-        message: `Field that was used to validate shouldn't have errors set. Errors: ${JSON.stringify(asyncValidateField.errors)}`
-      });
+      this.addMessage(`Validation of form returned: ${JSON.stringify(validationRes)}`);
+      this.addMessage(`Field that was used to validate shouldn't have errors set. Errors: ${JSON.stringify(asyncValidateField.errors)}`);
 
       return validationRes;
     }
@@ -199,6 +196,7 @@ export default class AsyncValidatorOnFormComponent {
   private someFieldValidator(): AsyncValidatorFn {
     return async (control: AbstractControl): Promise<ValidationErrors | null> => {
       const validatorCall: ValidatorCall = {
+        timestamp: Date.now(),
         callIdx: this.currCallIdx,
         message: '',
       };
@@ -231,46 +229,53 @@ export default class AsyncValidatorOnFormComponent {
         });
       }
 
-      return validatorCall.result;
+      return validatorCall.result ?? null;
     }
   }
 
   /* DEBUG ONLY THINGS FROM HERE ON*/
   private currCallIdx = 0;
-  protected calls$ = signal<ValidatorCall[]>([]);
+  private calls$ = signal<ValidatorCall[]>([]);
+  private messages$ = signal<SimpleMessage[]>([]);
+
+  protected debugStream$ = computed(() => {
+    const stream = [...this.calls$(), ...this.messages$()];
+    stream.sort((a, b) => a.timestamp - b.timestamp);
+
+    return stream;
+  });
 
   private addCall(call: ValidatorCall) {
     this.calls$.update(calls => {
-      if (calls.length >= 5) {
-        calls.shift();
-      }
-
       calls.push(call);
       return calls;
     });
   }
 
-  private updateCall(call: ValidatorCall, updates: Partial<ValidatorCall>) {
-    this.calls$.update((calls) => {
-      const callsCp = calls;
-      let foundIdx = calls.findIndex((el) => el.callIdx === call.callIdx);
+  private updateCall(call: ValidatorCall, updates: Partial<ValidatorCall>): ValidatorCall {
+    Object.assign(call, updates);
+    this.calls$.update((calls) => [...calls]);
+    return call;
+  }
 
-      if (foundIdx === -1) {
-        throw new Error("Such call index does not exist!");
-      }
-
-      callsCp[foundIdx] = {
-        ...callsCp[foundIdx],
-        ...updates,
-      }
-
-      return [...callsCp];
+  private addMessage(message: string) {
+    this.messages$.update((messages) => {
+      messages.push({ timestamp: Date.now(), message });
+      return messages;
     });
   }
 }
 
-export interface ValidatorCall {
+export interface Message {
+  timestamp: number
+}
+
+export interface ValidatorCall extends Message {
   callIdx: number
   message: string
   result?: ValidationErrors | null
+}
+
+export interface SimpleMessage extends Message {
+  message: string
 }
