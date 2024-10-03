@@ -12,22 +12,38 @@ import { MatRipple } from "@angular/material/core";
     
     <app-routes-panel/>
 
-    <router-outlet/>
+    <div class="content">
+      <router-outlet/>
+    </div>
   `,
   styles: `
     :host {
+      height: 100%;
+      
       display: flex;
       flex-flow: column nowrap;
       gap: 1rem;
       
       padding: 1rem;
+      
+      box-sizing: border-box;
     }
     
     .app-title {
       width: fit-content;
       cursor: pointer;
-      padding: 0 0.5rem;
+      padding: 0.5rem 0.5rem 2rem 0.5rem;
+      margin: 0;
       border-radius: 10px;
+    }
+    
+    .content {
+      height: 100%;
+      
+      padding: 0.5rem;
+      border-radius: 10px;
+      
+      background-color: var(--mat-app-background-color);
     }
   `,
 })
