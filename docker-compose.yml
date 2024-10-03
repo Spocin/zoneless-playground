@@ -1,0 +1,9 @@
+services:
+  zoneless-playground:
+    container_name: zoneless-playground
+    image: zoneless-playground:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '4200:80'
