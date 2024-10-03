@@ -7,12 +7,12 @@ import { Pipe, PipeTransform } from '@angular/core';
 export class TemplateLiteralFormatterPipe implements PipeTransform {
 
   transform(value: string): string {
-    const modifiedStr = value
-        .split('\n')
-        .map(line => line.trim())
-        .join('\n')
-        .trim();
+	const modifiedStr = value
+		.split('\n')
+		.map(line => line.trim())
+		.join('\n')
+		.trim();
 
-    return modifiedStr;
+	return modifiedStr;
   }
 }

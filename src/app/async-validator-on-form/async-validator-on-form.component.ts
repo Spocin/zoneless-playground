@@ -10,21 +10,21 @@ import {
   ValidationErrors,
   Validators,
 } from "@angular/forms";
-import { interval, lastValueFrom, map, takeWhile, tap, timestamp } from "rxjs";
+import { interval, lastValueFrom, map, takeWhile, tap } from "rxjs";
 import { AsyncPipe, JsonPipe } from "@angular/common";
 
 @Component({
   selector: 'app-async-validator-on-form',
   standalone: true,
   imports: [
-    MatButton,
-    MatFormField,
-    MatLabel,
-    MatInput,
-    ReactiveFormsModule,
-    AsyncPipe,
-    MatError,
-    JsonPipe,
+	MatButton,
+	MatFormField,
+	MatLabel,
+	MatInput,
+	ReactiveFormsModule,
+	AsyncPipe,
+	MatError,
+	JsonPipe,
   ],
   template: `
       <form class="form">
@@ -127,7 +127,7 @@ import { AsyncPipe, JsonPipe } from "@angular/common";
       padding: 1rem;
 
       background-color: color-mix(in srgb, var(--mat-app-background-color), #000 5%);
-      
+
       max-height: 55vh;
       overflow-y: auto;
 
@@ -140,12 +140,12 @@ import { AsyncPipe, JsonPipe } from "@angular/common";
           font-weight: bold;
         }
       }
-      
+
       &__stream {
         display: flex;
         flex-flow: column nowrap;
         gap: 0.5rem;
-        
+
         &__record {
           font-size: small;
         }
@@ -155,25 +155,33 @@ import { AsyncPipe, JsonPipe } from "@angular/common";
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export default class AsyncValidatorOnFormComponent {
-  private readonly fb = inject(FormBuilder).nonNullable;
-
-  protected form = this.fb.group({
-    firstName: this.fb.control('', Validators.required),
-    middleName: '',
-    lastName: this.fb.control('', Validators.required),
-    email: this.fb.control('', [Validators.required, Validators.email]),
-    asyncValidateField: this.fb.control({value: '', disabled: true}, null, [this.someFieldValidator()])
-  }, {asyncValidators: [this.wholeFormAsyncValidator()]});
-
   protected saving$ = signal(false);
+  private readonly fb = inject(FormBuilder).nonNullable;
+  protected form = this.fb.group({
+	firstName: this.fb.control('', Validators.required),
+	middleName: '',
+	lastName: this.fb.control('', Validators.required),
+	email: this.fb.control('', [Validators.required, Validators.email]),
+	asyncValidateField: this.fb.control({value: '', disabled: true}, null, [this.someFieldValidator()])
+  }, {asyncValidators: [this.wholeFormAsyncValidator()]});
+  /* DEBUG ONLY THINGS FROM HERE ON*/
+  private currCallIdx = 0;
+  private calls$ = signal<ValidatorCall[]>([]);
+  private messages$ = signal<SimpleMessage[]>([]);
+  protected debugStream$ = computed(() => {
+	const stream = [...this.calls$(), ...this.messages$()];
+	stream.sort((a, b) => a.timestamp - b.timestamp);
+
+	return stream;
+  });
 
   protected async onSave() {
-    const wholeFormValidationRes = await this.wholeFormAsyncValidator()(this.form);
-    console.log(`Form has been validated to with result: ${JSON.stringify(wholeFormValidationRes)}`);
+	const wholeFormValidationRes = await this.wholeFormAsyncValidator()(this.form);
+	console.log(`Form has been validated to with result: ${JSON.stringify(wholeFormValidationRes)}`);
 
-    if (wholeFormValidationRes) {
-      this.form.setErrors(wholeFormValidationRes);
-    }
+	if (wholeFormValidationRes) {
+	  this.form.setErrors(wholeFormValidationRes);
+	}
   }
 
   /**
@@ -181,23 +189,23 @@ export default class AsyncValidatorOnFormComponent {
    * @private
    */
   private wholeFormAsyncValidator(): AsyncValidatorFn {
-    /*TODO No switchMap mechanic on this call*/
+	/*TODO No switchMap mechanic on this call*/
 
-    return async (control: AbstractControl): Promise<ValidationErrors | null> => {
-      //Couldn't figure out better way to keep type system. It is loose end.
-      const asyncValidateField = (control as unknown as typeof this.form).controls.asyncValidateField;
+	return async (control: AbstractControl): Promise<ValidationErrors | null> => {
+	  //Couldn't figure out better way to keep type system. It is loose end.
+	  const asyncValidateField = (control as unknown as typeof this.form).controls.asyncValidateField;
 
-      const validationRes: ValidationErrors | null = await this.someFieldValidator()(asyncValidateField);
+	  const validationRes: ValidationErrors | null = await this.someFieldValidator()(asyncValidateField);
 
-      if (!validationRes) {
-        return null;
-      }
+	  if (!validationRes) {
+		return null;
+	  }
 
-      this.addMessage(`Validation of form returned: ${JSON.stringify(validationRes)}`);
-      this.addMessage(`Field that was used to validate shouldn't have errors set. Errors: ${JSON.stringify(asyncValidateField.errors)}`);
+	  this.addMessage(`Validation of form returned: ${JSON.stringify(validationRes)}`);
+	  this.addMessage(`Field that was used to validate shouldn't have errors set. Errors: ${JSON.stringify(asyncValidateField.errors)}`);
 
-      return validationRes;
-    }
+	  return validationRes;
+	}
   }
 
   /**
@@ -205,75 +213,63 @@ export default class AsyncValidatorOnFormComponent {
    * @private
    */
   private someFieldValidator(): AsyncValidatorFn {
-    return async (control: AbstractControl): Promise<ValidationErrors | null> => {
-      const validatorCall: ValidatorCall = {
-        timestamp: Date.now(),
-        callIdx: this.currCallIdx,
-        message: '',
-      };
+	return async (control: AbstractControl): Promise<ValidationErrors | null> => {
+	  const validatorCall: ValidatorCall = {
+		timestamp: Date.now(),
+		callIdx: this.currCallIdx,
+		message: '',
+	  };
 
-      this.addCall(validatorCall);
-      this.currCallIdx += 1;
+	  this.addCall(validatorCall);
+	  this.currCallIdx += 1;
 
-      let secondsToWait = 5;
-      const sleeper$ = interval(1000)
-        .pipe(
-          map(() => secondsToWait),
-          tap((count) => this.updateCall(validatorCall,{ message: `Waiting ${count} seconds...`})),
-          tap(() => secondsToWait -= 1),
-          takeWhile((count) => count !== 0)
-        );
+	  let secondsToWait = 5;
+	  const sleeper$ = interval(1000)
+		  .pipe(
+			  map(() => secondsToWait),
+			  tap((count) => this.updateCall(validatorCall, {message: `Waiting ${count} seconds...`})),
+			  tap(() => secondsToWait -= 1),
+			  takeWhile((count) => count !== 0)
+		  );
 
-      await lastValueFrom(sleeper$);
+	  await lastValueFrom(sleeper$);
 
-      //Mock some validation fail
-      if (validatorCall.callIdx === 7 || validatorCall.callIdx == 10) {
-        this.updateCall(validatorCall,{
-          message: '',
-          result: { error: `error on call: ${validatorCall.callIdx}` },
-        });
-      } else {
-        validatorCall.result = null;
-        this.updateCall(validatorCall,{
-          message: '',
-          result: null,
-        });
-      }
+	  //Mock some validation fail
+	  if (validatorCall.callIdx === 7 || validatorCall.callIdx == 10) {
+		this.updateCall(validatorCall, {
+		  message: '',
+		  result: {error: `error on call: ${validatorCall.callIdx}`},
+		});
+	  } else {
+		validatorCall.result = null;
+		this.updateCall(validatorCall, {
+		  message: '',
+		  result: null,
+		});
+	  }
 
-      return validatorCall.result ?? null;
-    }
+	  return validatorCall.result ?? null;
+	}
   }
 
-  /* DEBUG ONLY THINGS FROM HERE ON*/
-  private currCallIdx = 0;
-  private calls$ = signal<ValidatorCall[]>([]);
-  private messages$ = signal<SimpleMessage[]>([]);
-
-  protected debugStream$ = computed(() => {
-    const stream = [...this.calls$(), ...this.messages$()];
-    stream.sort((a, b) => a.timestamp - b.timestamp);
-
-    return stream;
-  });
-
   private addCall(call: ValidatorCall) {
-    this.calls$.update(calls => {
-      calls.push(call);
-      return calls;
-    });
+	this.calls$.update(calls => {
+	  calls.push(call);
+	  return calls;
+	});
   }
 
   private updateCall(call: ValidatorCall, updates: Partial<ValidatorCall>): ValidatorCall {
-    Object.assign(call, updates);
-    this.calls$.update((calls) => [...calls]);
-    return call;
+	Object.assign(call, updates);
+	this.calls$.update((calls) => [...calls]);
+	return call;
   }
 
   private addMessage(message: string) {
-    this.messages$.update((messages) => {
-      messages.push({ timestamp: Date.now(), message });
-      return messages;
-    });
+	this.messages$.update((messages) => {
+	  messages.push({timestamp: Date.now(), message});
+	  return messages;
+	});
   }
 }
 
