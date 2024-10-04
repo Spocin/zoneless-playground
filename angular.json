@@ -52,7 +52,9 @@
             "polyfills": [],
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
-            "assets": [],
+            "assets": [
+              "src/assets/icons"
+            ],
             "styles": [
               "@angular/material/prebuilt-themes/azure-blue.css",
               "src/assets/styles.scss"
