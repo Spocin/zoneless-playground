@@ -29,15 +29,17 @@ import { MatExpansionPanel, MatExpansionPanelHeader, MatExpansionPanelTitle } fr
           </mat-expansion-panel-header>
           <mat-nav-list>
               @for (route of Object.entries(appRoutes); track route[0]) {
-                  <mat-list-item class="route" [routerLink]="route[1].path">
-                      <div matListItemTitle class="route__title">
-                          <span class="route__title__label">Route:</span> {{ route[0] }}
-                      </div>
-                      <div matListItemLine class="route__line">{{ route[1].label }}</div>
-                      <div matListItemMeta class="route__meta">
-                          <pre>{{ route[1].description | templateLiteralFormatter }}</pre>
-                      </div>
-                  </mat-list-item>
+				  <a [routerLink]="route[1].path">
+                      <mat-list-item class="route">
+                          <div matListItemTitle class="route__title">
+                              <span class="route__title__label">Route:</span> {{ route[0] }}
+                          </div>
+                          <div matListItemLine class="route__line">{{ route[1].label }}</div>
+                          <div matListItemMeta class="route__meta">
+                              <pre>{{ route[1].description | templateLiteralFormatter }}</pre>
+                          </div>
+                      </mat-list-item>
+				  </a>
               }
           </mat-nav-list>
       </mat-expansion-panel>

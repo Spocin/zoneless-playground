@@ -8,13 +8,15 @@ import { MatRipple } from "@angular/material/core";
   standalone: true,
   imports: [RouterOutlet, RoutesPanelComponent, RouterLink, MatRipple],
   template: `
-      <h1 matRipple routerLink="" class="app-title">Welcome to {{ title }}!</h1>
+    <a routerLink="">
+      <h1 matRipple class="app-title">Welcome to {{ title }}!</h1>
+    </a>
 
-      <app-routes-panel/>
+    <app-routes-panel/>
 
-      <div class="content">
-          <router-outlet/>
-      </div>
+    <div class="content">
+      <router-outlet/>
+    </div>
   `,
   styles: `
     :host {
