@@ -1,7 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { RoutesPanelComponent } from "./components/routes-panel.component";
 import { MatRipple } from "@angular/material/core";
+import { Meta } from "@angular/platform-browser";
 
 @Component({
   selector: 'app-root',
@@ -50,6 +51,18 @@ import { MatRipple } from "@angular/material/core";
     }
   `,
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
+  private readonly meta = inject(Meta);
+
   title = 'zoneless-playground';
+
+  public ngOnInit() {
+	this.addBaseMetaTags();
+  }
+
+  private addBaseMetaTags() {
+	this.meta.addTag({ name: 'title', content: 'ZonelessPlayground' });
+	this.meta.addTag({ name: 'description', content: 'Experimanetal project to test out zoneless Angular' });
+	this.meta.addTag({ name: 'keywords', content: 'zoneless angular exprimental' })
+  }
 }
