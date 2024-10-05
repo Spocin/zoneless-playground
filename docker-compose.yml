@@ -1,14 +1,4 @@
 services:
-  zoneless-playground-static:
-    container_name: zoneless-playground-static
-    image: zoneless-playground-static:latest
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: static
-    ports:
-      - '4200:80'
-
   zoneless-playground-ssr:
     container_name: zoneless-playground-ssr
     image: zoneless-playground-ssr:latest
