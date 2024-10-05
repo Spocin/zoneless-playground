@@ -69,7 +69,7 @@ import { AsyncPipe, JsonPipe, NgClass } from "@angular/common";
       </form>
 
       <div class="debug-panel">
-          <h4 class="debug-panel__title">Debug panel</h4>
+          <h3 class="debug-panel__title">Debug panel</h3>
 
           <div class="debug-panel__item">
               <span class="debug-panel__item__label">Saving$:&nbsp;</span>

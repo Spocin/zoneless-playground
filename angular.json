@@ -49,6 +49,10 @@
             "outputPath": "dist/zoneless-playground",
             "index": "src/index.html",
             "browser": "src/main.ts",
+            "allowedCommonJsDependencies": [
+              "compression",
+              "spdy"
+            ],
             "polyfills": [],
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",

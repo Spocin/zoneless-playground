@@ -2,9 +2,11 @@ import { APP_BASE_HREF } from '@angular/common';
 import { CommonEngine } from '@angular/ssr';
 import express from 'express';
 import { fileURLToPath } from 'node:url';
-import { dirname, join, resolve } from 'node:path';
+import path, { dirname, join, resolve } from 'node:path';
 import bootstrap from './src/main.server';
 import compression from "compression";
+import { createServer } from "spdy";
+import { readFileSync } from "node:fs";
 
 // The Express app is exported so that it can be used by serverless Functions.
 export function app(): express.Express {
@@ -52,10 +54,18 @@ export function app(): express.Express {
 function run(): void {
   const port = process.env['PORT'] || 4000;
 
-  // Start up the Node server
-  const server = app();
-  server.listen(port, () => {
-	console.log(`Node Express server listening on http://localhost:${port}`);
+  const cert_dir = `${path.dirname(`${fileURLToPath(import.meta.url)}`)}/ssl`;
+  const spdyServer = createServer(
+	  {
+		key: readFileSync(`${cert_dir}/server.key`),
+		cert: readFileSync(`${cert_dir}/server.cert`),
+	  },
+	  app()
+  );
+
+  spdyServer.listen(port, () => {
+	console.log(`Spdy & Node Express server listening on http://localhost:${port}`);
+	console.log('SSL enabled');
   });
 }
 

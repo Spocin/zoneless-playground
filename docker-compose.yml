@@ -5,6 +5,5 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: ssr
     ports:
       - '4000:4000'

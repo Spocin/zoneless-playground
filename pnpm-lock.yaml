@@ -53,6 +53,9 @@ importers:
       rxjs:
         specifier: ~7.8.1
         version: 7.8.1
+      spdy:
+        specifier: ^4.0.2
+        version: 4.0.2
       tslib:
         specifier: ^2.7.0
         version: 2.7.0
@@ -75,6 +78,9 @@ importers:
       '@types/node':
         specifier: ^18.19.54
         version: 18.19.54
+      '@types/spdy':
+        specifier: ^3.4.9
+        version: 3.4.9
       typescript:
         specifier: ~5.5.4
         version: 5.5.4
@@ -2038,6 +2044,9 @@ packages:
 
   '@types/sockjs@0.3.36':
     resolution: {integrity: sha512-MK9V6NzAS1+Ud7JV9lJLFqW85VbC9dq3LmwZCuBe4wBDgKC0Kj/jd8Xl+nSviU+Qc3+m7umHHyHg//2KSa0a0Q==}
+
+  '@types/spdy@3.4.9':
+    resolution: {integrity: sha512-ZYGzQrZX6j4GEy9x9+e4bjWOPOiZqFPm/3GnZ9xS0SMJqs+FbNiF6hBzr8EjSF2Z6TFY/PzUWOswUiRcZxW3FQ==}
 
   '@types/wrap-ansi@3.0.0':
     resolution: {integrity: sha512-ltIpx+kM7g/MLRZfkbL7EsCEjfzCcScLpkg37eXEtx5kmrAKBkTJwd1GIAjDSL8wTpM6Hzn5YO4pSb91BEwu1g==}
@@ -7450,6 +7459,10 @@ snapshots:
       '@types/send': 0.17.4
 
   '@types/sockjs@0.3.36':
+    dependencies:
+      '@types/node': 18.19.54
+
+  '@types/spdy@3.4.9':
     dependencies:
       '@types/node': 18.19.54
 

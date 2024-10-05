@@ -24,7 +24,7 @@ import { MatExpansionPanel, MatExpansionPanelHeader, MatExpansionPanelTitle } fr
       <mat-expansion-panel>
           <mat-expansion-panel-header>
               <mat-panel-title>
-                  <h5 class="panel-title">Available routes</h5>
+                  <h2 class="panel-title">Available routes</h2>
               </mat-panel-title>
           </mat-expansion-panel-header>
           <mat-nav-list>
