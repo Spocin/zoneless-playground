@@ -52,7 +52,18 @@
             "polyfills": [],
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
-            "assets": [],
+            "assets": [
+              {
+                "glob": "robots.txt",
+                "input": "src/assets/robots/",
+                "output": "./"
+              },
+              {
+                "glob": "sitemap.xml",
+                "input": "src/assets/robots/",
+                "output": "./"
+              }
+            ],
             "styles": [
               "@angular/material/prebuilt-themes/azure-blue.css",
               "src/assets/styles.scss"
