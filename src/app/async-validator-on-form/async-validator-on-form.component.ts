@@ -2,15 +2,22 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { MatButton } from "@angular/material/button";
 import { MatError, MatFormField, MatLabel } from "@angular/material/form-field";
 import { MatInput } from "@angular/material/input";
+import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators, } from "@angular/forms";
 import {
-  AbstractControl,
-  AsyncValidatorFn,
-  FormBuilder,
-  ReactiveFormsModule,
-  ValidationErrors,
-  Validators,
-} from "@angular/forms";
-import { interval, lastValueFrom, map, takeWhile, tap } from "rxjs";
+  delay,
+  finalize,
+  firstValueFrom, from,
+  interval,
+  map,
+  Observable,
+  of, skipUntil, skipWhile,
+  Subject,
+  Subscription,
+  switchMap,
+  takeUntil,
+  takeWhile,
+  tap
+} from "rxjs";
 import { AsyncPipe, JsonPipe, NgClass } from "@angular/common";
 
 @Component({
@@ -78,8 +85,8 @@ import { AsyncPipe, JsonPipe, NgClass } from "@angular/common";
 
           <div class="debug-panel__stream">
               <span>
-				  @let areCallsPending = isAnyCallPending$();
-				  Calls
+				  @let areCallsPending = isAnyCallPending$() ;
+                  Calls
 					<div class="debug-panel__stream__status"
                          title="{{ areCallsPending ? 'Calls pending' : 'No pending calls' }}"
                          [ngClass]="{ 'debug-panel__stream__status--pending': areCallsPending}">
@@ -154,14 +161,14 @@ import { AsyncPipe, JsonPipe, NgClass } from "@angular/common";
         display: flex;
         flex-flow: column nowrap;
         gap: 0.5rem;
-		
+
         &__record {
-		  padding-left: 5px;
+          padding-left: 5px;
           font-size: small;
-		  
-		  &--even {
+
+          &--even {
             background-color: color-mix(in srgb, var(--mat-app-background-color), #000 10%);
-		  }
+          }
         }
 
         &__status {
@@ -171,8 +178,8 @@ import { AsyncPipe, JsonPipe, NgClass } from "@angular/common";
 
           border-radius: 50%;
           background-color: red;
-		  
-		  vertical-align: middle;
+
+          vertical-align: middle;
 
           &--pending {
             background-color: green;
@@ -191,8 +198,8 @@ export default class AsyncValidatorOnFormComponent {
 	middleName: '',
 	lastName: this.fb.control('', Validators.required),
 	email: this.fb.control('', [Validators.required, Validators.email]),
-	asyncValidateField: this.fb.control({value: '', disabled: true}, null, [this.someFieldValidator()])
-  }, {asyncValidators: [this.wholeFormAsyncValidator()]});
+	asyncValidateField: this.fb.control({ value: '', disabled: true }, null, [this.someFieldValidator()])
+  }, { asyncValidators: [this.wholeFormAsyncValidator()] });
 
   protected async onSave() {
 	const wholeFormValidationRes = await this.wholeFormAsyncValidator()(this.form);
@@ -207,14 +214,18 @@ export default class AsyncValidatorOnFormComponent {
    * Validates {@link asyncValidateField};
    * @private
    */
-  private wholeFormAsyncValidator(): AsyncValidatorFn {
+  private wholeFormAsyncValidator() {
 	/*TODO No switchMap mechanic on this call*/
 
 	return async (control: AbstractControl): Promise<ValidationErrors | null> => {
+	  //this.abortAllPendingCalls();
+
 	  //Couldn't figure out better way to keep type system. It is loose end.
 	  const asyncValidateField = (control as unknown as typeof this.form).controls.asyncValidateField;
 
-	  const validationRes: ValidationErrors | null = await this.someFieldValidator()(asyncValidateField);
+	  console.log('Called');
+	  const validationRes: ValidationErrors | null = await firstValueFrom(this.someFieldValidator()());
+	  console.log('Post')
 
 	  if (!validationRes) {
 		return null;
@@ -231,44 +242,63 @@ export default class AsyncValidatorOnFormComponent {
    * Validates some control for 5 seconds.
    * @private
    */
-  private someFieldValidator(): AsyncValidatorFn {
-	return async (control: AbstractControl): Promise<ValidationErrors | null> => {
+  private someFieldValidator() {
+	return (): Observable<ValidationErrors | null> => {
 	  const validatorCall = new ValidatorCall({
 		timestamp: Date.now(),
 		callIdx: this.currCallIdx,
 		message: '',
+		abort$: new Subject(),
 	  });
 
 	  this.addCall(validatorCall);
 	  this.currCallIdx += 1;
 
 	  let secondsToWait = 5;
-	  const sleeper$ = interval(1000)
-		  .pipe(
-			  map(() => secondsToWait),
-			  tap((count) => this.updateCall(validatorCall, {message: `Waiting ${count} seconds...`})),
-			  tap(() => secondsToWait -= 1),
-			  takeWhile((count) => count !== 0)
-		  );
+	  return of()
+		.pipe(
+		  tap(() => console.log('Obs called')),
+		  switchMap(() =>
+			interval(1000)
+			  .pipe(
+				map(() => secondsToWait),
+				tap((count) => this.updateCall(validatorCall, { message: `Waiting ${count} seconds...` })),
+				tap(() => secondsToWait -= 1),
+			  )),
+		  map(() => {
+			//Mock some validation fail
+			if (validatorCall.callIdx === 7 || validatorCall.callIdx == 10) {
+			  this.updateCall(validatorCall, {
+				message: '',
+				result: { error: `error on call: ${validatorCall.callIdx}` },
+			  });
+			} else {
+			  validatorCall.result = null;
+			  this.updateCall(validatorCall, {
+				message: '',
+				result: null,
+			  });
+			}
 
-	  await lastValueFrom(sleeper$);
+			return validatorCall.result ?? null;
+		  }),
+		  finalize(() => this.updateCall(validatorCall, {
+			message: 'Aborted'
+		  })),
+		  takeUntil(validatorCall.abort$),
+		);
+	};
+  }
 
-	  //Mock some validation fail
-	  if (validatorCall.callIdx === 7 || validatorCall.callIdx == 10) {
-		this.updateCall(validatorCall, {
-		  message: '',
-		  result: {error: `error on call: ${validatorCall.callIdx}`},
+  private abortAllPendingCalls() {
+	const calls = this.calls$();
+
+	calls
+		.filter(call => call.abort$.complete())
+		.forEach(pendingCall => {
+		  pendingCall.abort$.next();
+		  pendingCall.abort$.complete();
 		});
-	  } else {
-		validatorCall.result = null;
-		this.updateCall(validatorCall, {
-		  message: '',
-		  result: null,
-		});
-	  }
-
-	  return validatorCall.result ?? null;
-	}
   }
 
   /* DEBUG ONLY THINGS FROM HERE ON*/
@@ -304,7 +334,7 @@ export default class AsyncValidatorOnFormComponent {
 
   private addMessage(message: string) {
 	this.messages$.update((messages) => {
-	  messages.push(new SimpleMessage({timestamp: Date.now(), message}));
+	  messages.push(new SimpleMessage({ timestamp: Date.now(), message }));
 	  return messages;
 	});
   }
@@ -318,6 +348,8 @@ export interface IValidatorCall extends Message {
   callIdx: number
   message: string
   result?: ValidationErrors | null
+  abort$: Subject<void>
+  subscription?: Subscription
 }
 
 export interface ISimpleMessage extends Message {
@@ -327,21 +359,22 @@ export interface ISimpleMessage extends Message {
 export type MessageTypes = ValidatorCall | SimpleMessage;
 
 export class ValidatorCall implements IValidatorCall {
-    callIdx!: number;
-    message!: string;
-    result?: ValidationErrors | null | undefined;
-    timestamp!: number;
+  callIdx!: number;
+  message!: string;
+  result: ValidationErrors | null | undefined;
+  abort$!: Subject<void>
+  timestamp!: number;
 
-	constructor(dto: IValidatorCall) {
-	  Object.assign(this, dto);
-	}
+  constructor(dto: IValidatorCall) {
+	Object.assign(this, dto);
+  }
 }
 
 export class SimpleMessage implements ISimpleMessage {
-    message!: string;
-    timestamp!: number;
+  message!: string;
+  timestamp!: number;
 
-	constructor(dto: ISimpleMessage) {
-	  Object.assign(this, dto);
-	}
+  constructor(dto: ISimpleMessage) {
+	Object.assign(this, dto);
+  }
 }
