@@ -4,21 +4,20 @@ import { MatError, MatFormField, MatLabel } from "@angular/material/form-field";
 import { MatInput } from "@angular/material/input";
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators, } from "@angular/forms";
 import {
-  delay,
+  bufferCount,
   finalize,
-  firstValueFrom, from,
   interval,
   map,
   Observable,
-  of, skipUntil, skipWhile,
+  of,
   Subject,
   Subscription,
-  switchMap,
-  takeUntil,
-  takeWhile,
+  switchMap, take,
+  takeUntil, takeWhile,
   tap
 } from "rxjs";
 import { AsyncPipe, JsonPipe, NgClass } from "@angular/common";
+import { FormatMessagePipe } from "../pipes/format-message.pipe";
 
 @Component({
   selector: 'app-async-validator-on-form',
@@ -33,6 +32,7 @@ import { AsyncPipe, JsonPipe, NgClass } from "@angular/common";
 	MatError,
 	JsonPipe,
 	NgClass,
+	FormatMessagePipe,
   ],
   template: `
       <form class="form">
@@ -94,7 +94,7 @@ import { AsyncPipe, JsonPipe, NgClass } from "@angular/common";
 			  </span>
               @for (call of debugStream$(); let ev = $even; track $index) {
                   <code class="debug-panel__stream__record"
-                        [ngClass]="{ 'debug-panel__stream__record--even': ev }">{{ call | json }}</code>
+                        [ngClass]="{ 'debug-panel__stream__record--even': ev }">{{ call.formatPrint() | json }}</code>
               }
           </div>
       </div>
@@ -215,26 +215,21 @@ export default class AsyncValidatorOnFormComponent {
    * @private
    */
   private wholeFormAsyncValidator() {
-	/*TODO No switchMap mechanic on this call*/
-
-	return async (control: AbstractControl): Promise<ValidationErrors | null> => {
+	return (control: AbstractControl): Observable<ValidationErrors | null> => {
 	  //this.abortAllPendingCalls();
 
 	  //Couldn't figure out better way to keep type system. It is loose end.
 	  const asyncValidateField = (control as unknown as typeof this.form).controls.asyncValidateField;
 
-	  console.log('Called');
-	  const validationRes: ValidationErrors | null = await firstValueFrom(this.someFieldValidator()());
-	  console.log('Post')
+	  return this.someFieldValidator()()
+		.pipe(tap(res => {
+		  if (!res) {
+			return;
+		  }
 
-	  if (!validationRes) {
-		return null;
-	  }
-
-	  this.addMessage(`Validation of form returned: ${JSON.stringify(validationRes)}`);
-	  this.addMessage(`Field that was used to validate shouldn't have errors set. Errors: ${JSON.stringify(asyncValidateField.errors)}`);
-
-	  return validationRes;
+		  this.addMessage(`Validation of form returned with error: ${JSON.stringify(res)}`);
+		  this.addMessage(`Field that was used to validate shouldn't have errors set. Errors: ${JSON.stringify(asyncValidateField.errors)}`);
+		}));
 	}
   }
 
@@ -254,17 +249,21 @@ export default class AsyncValidatorOnFormComponent {
 	  this.addCall(validatorCall);
 	  this.currCallIdx += 1;
 
-	  let secondsToWait = 5;
-	  return of()
+	  return of(null)
 		.pipe(
-		  tap(() => console.log('Obs called')),
-		  switchMap(() =>
-			interval(1000)
+		  switchMap(() => {
+			let secondsToWait = 5;
+			const totalWaitTime = secondsToWait;
+
+			return interval(1000)
 			  .pipe(
 				map(() => secondsToWait),
 				tap((count) => this.updateCall(validatorCall, { message: `Waiting ${count} seconds...` })),
 				tap(() => secondsToWait -= 1),
-			  )),
+				take(totalWaitTime),
+				bufferCount(totalWaitTime),
+			  );
+		  }),
 		  map(() => {
 			//Mock some validation fail
 			if (validatorCall.callIdx === 7 || validatorCall.callIdx == 10) {
@@ -282,9 +281,7 @@ export default class AsyncValidatorOnFormComponent {
 
 			return validatorCall.result ?? null;
 		  }),
-		  finalize(() => this.updateCall(validatorCall, {
-			message: 'Aborted'
-		  })),
+		  finalize(() => validatorCall.result ? undefined : this.updateCall(validatorCall, { message: 'Aborted'})),
 		  takeUntil(validatorCall.abort$),
 		);
 	};
@@ -342,7 +339,11 @@ export default class AsyncValidatorOnFormComponent {
 
 export interface Message {
   timestamp: number
+
+  formatPrint(): Omit<this, keyof this>;
 }
+
+export type MessageTypes = ValidatorCall | SimpleMessage;
 
 export interface IValidatorCall extends Message {
   callIdx: number
@@ -350,13 +351,15 @@ export interface IValidatorCall extends Message {
   result?: ValidationErrors | null
   abort$: Subject<void>
   subscription?: Subscription
+
+  formatPrint(): Omit<this, 'abort$' | 'formatPrint'>
 }
 
 export interface ISimpleMessage extends Message {
   message: string
-}
 
-export type MessageTypes = ValidatorCall | SimpleMessage;
+  formatPrint(): Omit<this, 'formatPrint'>
+}
 
 export class ValidatorCall implements IValidatorCall {
   callIdx!: number;
@@ -365,8 +368,18 @@ export class ValidatorCall implements IValidatorCall {
   abort$!: Subject<void>
   timestamp!: number;
 
-  constructor(dto: IValidatorCall) {
+  constructor(dto: Omit<IValidatorCall, 'formatPrint'>) {
 	Object.assign(this, dto);
+  }
+
+  public formatPrint(): Omit<this, 'abort$' | 'formatPrint'> {
+	const {
+	  abort$,
+	  formatPrint,
+	  ...rest
+	} = this;
+
+	return rest;
   }
 }
 
@@ -374,7 +387,16 @@ export class SimpleMessage implements ISimpleMessage {
   message!: string;
   timestamp!: number;
 
-  constructor(dto: ISimpleMessage) {
+  constructor(dto: Omit<ISimpleMessage, 'formatPrint'>) {
 	Object.assign(this, dto);
+  }
+
+  formatPrint(): Omit<this, 'formatPrint'> {
+	const {
+	  formatPrint,
+	  ...rest
+	} = this;
+
+	return rest;
   }
 }
