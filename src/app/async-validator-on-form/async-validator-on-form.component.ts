@@ -202,8 +202,6 @@ export default class AsyncValidatorOnFormComponent {
    */
   private wholeFormAsyncValidator() {
 	return (control: AbstractControl): Observable<ValidationErrors | null> => {
-	  //this.abortAllPendingCalls();
-
 	  //Couldn't figure out better way to keep type system. It is loose end.
 	  const asyncValidateField = (control as unknown as typeof this.form).controls.asyncValidateField;
 
@@ -229,6 +227,7 @@ export default class AsyncValidatorOnFormComponent {
 		timestamp: Date.now(),
 		callIdx: this.currCallIdx,
 		message: '',
+		state: 'PENDING',
 	  });
 
 	  this.addCall(validatorCall);
@@ -254,19 +253,21 @@ export default class AsyncValidatorOnFormComponent {
 			if (validatorCall.callIdx === 7 || validatorCall.callIdx == 10) {
 			  this.updateCall(validatorCall, {
 				message: '',
+				state: 'COMPLETED',
 				result: { error: `error on call: ${validatorCall.callIdx}` },
 			  });
 			} else {
 			  validatorCall.result = null;
 			  this.updateCall(validatorCall, {
 				message: '',
+				state: 'COMPLETED',
 				result: null,
 			  });
 			}
 
 			return validatorCall.result ?? null;
 		  }),
-		  finalize(() => validatorCall.result ? undefined : this.updateCall(validatorCall, { message: 'Aborted'})),
+		  finalize(() => validatorCall.result === undefined ? this.updateCall(validatorCall, { state: 'ABORTED', message: 'Aborted' }) : undefined),
 		);
 	};
   }
@@ -316,11 +317,14 @@ export interface Message {
 
 export type MessageTypes = ValidatorCall | SimpleMessage;
 
+export type CallState = 'PENDING' | 'COMPLETED' | 'ABORTED';
+
 export interface IValidatorCall extends Message {
   callIdx: number
   message: string
   result?: ValidationErrors | null
   subscription?: Subscription
+  state: CallState
 }
 
 export interface ISimpleMessage extends Message {
@@ -332,6 +336,7 @@ export class ValidatorCall implements IValidatorCall {
   message!: string;
   result: ValidationErrors | null | undefined;
   timestamp!: number;
+  state!: CallState;
 
   constructor(dto: IValidatorCall) {
 	Object.assign(this, dto);
