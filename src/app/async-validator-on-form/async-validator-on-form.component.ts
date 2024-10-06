@@ -2,25 +2,25 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { MatButton } from "@angular/material/button";
 import { MatError, MatFormField, MatLabel } from "@angular/material/form-field";
 import { MatInput } from "@angular/material/input";
-import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators, } from "@angular/forms";
+import { FormBuilder, ReactiveFormsModule, ValidationErrors, Validators, } from "@angular/forms";
 import { bufferCount, finalize, interval, map, Observable, of, Subscription, switchMap, take, tap } from "rxjs";
 import { AsyncPipe, JsonPipe, NgClass } from "@angular/common";
 
 @Component({
-  selector: 'app-async-validator-on-form',
-  standalone: true,
-  imports: [
-	MatButton,
-	MatFormField,
-	MatLabel,
-	MatInput,
-	ReactiveFormsModule,
-	AsyncPipe,
-	MatError,
-	JsonPipe,
-	NgClass,
-  ],
-  template: `
+	selector: 'app-async-validator-on-form',
+	standalone: true,
+	imports: [
+		MatButton,
+		MatFormField,
+		MatLabel,
+		MatInput,
+		ReactiveFormsModule,
+		AsyncPipe,
+		MatError,
+		JsonPipe,
+		NgClass,
+	],
+	template: `
       <form class="form">
           <div class="form__toolbar">
               <button mat-raised-button [disabled]="!form.valid || saving$()" (click)="onSave()">Save form!</button>
@@ -79,8 +79,8 @@ import { AsyncPipe, JsonPipe, NgClass } from "@angular/common";
 				  @let areCallsPending = isAnyCallPending$() ;
                   Calls
 					<div class="debug-panel__stream__status"
-                         title="{{ areCallsPending ? 'Calls pending' : 'No pending calls' }}"
-                         [ngClass]="{ 'debug-panel__stream__status--pending': areCallsPending}">
+               title="{{ areCallsPending ? 'Calls pending' : 'No pending calls' }}"
+               [ngClass]="{ 'debug-panel__stream__status--pending': areCallsPending}">
 					</div>
 			  </span>
               @for (call of debugStream$(); let ev = $even; track $index) {
@@ -89,8 +89,8 @@ import { AsyncPipe, JsonPipe, NgClass } from "@angular/common";
               }
           </div>
       </div>
-  `,
-  styles: `
+	`,
+	styles: `
     :host {
       padding: 0.5rem 0;
 
@@ -178,185 +178,187 @@ import { AsyncPipe, JsonPipe, NgClass } from "@angular/common";
         }
       }
     }
-  `,
-  changeDetection: ChangeDetectionStrategy.OnPush
+	`,
+	changeDetection: ChangeDetectionStrategy.OnPush
 })
 export default class AsyncValidatorOnFormComponent {
-  protected saving$ = signal(false);
-  private readonly fb = inject(FormBuilder).nonNullable;
-  protected form = this.fb.group({
-	firstName: this.fb.control('', Validators.required),
-	middleName: '',
-	lastName: this.fb.control('', Validators.required),
-	email: this.fb.control('', [Validators.required, Validators.email]),
-	asyncValidateField: this.fb.control({ value: '', disabled: true }, null, [this.someFieldValidator()])
-  }, { asyncValidators: [this.wholeFormAsyncValidator()] });
+	protected saving$ = signal(false);
+	private readonly fb = inject(FormBuilder).nonNullable;
+	protected form = this.fb.group({
+		firstName: this.fb.control('', Validators.required),
+		middleName: '',
+		lastName: this.fb.control('', Validators.required),
+		email: this.fb.control('', [Validators.required, Validators.email]),
+		asyncValidateField: this.fb.control('', { updateOn: 'blur' })
+	}, { asyncValidators: [this.wholeFormAsyncValidator()] });
 
-  protected async onSave() {
-	const wholeFormValidationRes = await this.wholeFormAsyncValidator()();
-	console.log(`Form has been validated to with result: ${JSON.stringify(wholeFormValidationRes)}`);
+	protected async onSave() {
+		const wholeFormValidationRes = await this.wholeFormAsyncValidator()();
+		console.log(`Form has been validated to with result: ${JSON.stringify(wholeFormValidationRes)}`);
 
-	if (wholeFormValidationRes) {
-	  this.form.setErrors(wholeFormValidationRes);
+		if (wholeFormValidationRes) {
+			this.form.setErrors(wholeFormValidationRes);
+		}
 	}
-  }
-
-  /**
-   * NOTE
-   * No `this` context is available here as this function is passed.
-   *
-   * FIXME I found no way to create validator on whole form that will unsubscribe only when targeted control changes.
-   * FIXME #1 Call validator every time form changes.
-   * 	      This will make a lot of redundant calls.
-   *
-   * FIXME #2 Cache the value of the targeted control (only after validator returned some result) and trigger
-   * 		  validation only new value does not match cached one.
-   *		  If cache was to be updated before call to validator it might return incorrect state. Validation might
-   *		  get interrupted but cached value was already updated. So any feature calls will not even trigger
-   *		  validation.
-   *
-   * TODO Make this work
-   *
-   * Validates {@link asyncValidateField};
-   * @private
-   */
-  private wholeFormAsyncValidator() {
-	let asyncValidateFieldCache: typeof this.form.value.asyncValidateField | null = null;
 
 	/**
 	 * NOTE
-	 *	Despite this function being passed,
-	 * `this` context is available here as arrow functions have their own bindings to `this`.
+	 * No `this` context is available here as this function is passed.
+	 *
+	 * FIXME I found no way to create validator on whole form th\at will unsubscribe only when targeted control changes.
+	 * FIXME #1 Call validator every time form changes.
+	 * 	      This will make a lot of redundant calls.
+	 *
+	 * FIXME #2 Cache the value of the targeted control (only after validator returned some result) and trigger
+	 * 		  validation only new value does not match cached one.
+	 * 		  PROBLEM
+	 *		  If cache was to be updated before call to validator it might return incorrect state. Validation might
+	 *		  get interrupted but cached value was already updated. So any feature calls will not even trigger
+	 *		  validation.
+	 *
+	 * Validates {@link asyncValidateField};
+	 * @private
 	 */
-	return (): Observable<ValidationErrors | null> => {
-	  const {
-		value,
-		errors
-	  } = this.form.controls.asyncValidateField;
+	private wholeFormAsyncValidator() {
+		let asyncValidateFieldCache: typeof this.form.value.asyncValidateField | null = null;
 
-	  // Trigger validation only when target field changes.
-	  if (value === asyncValidateFieldCache) {
-		this.addMessage(`Form value didn't change. No need to revalidate.`)
-		return of(null);
-	  }
+		/**
+		 * NOTE
+		 *	Despite this function being passed,
+		 * `this` context is available here as arrow functions have their own bindings to `this`.
+		 */
+		return (): Observable<ValidationErrors | null> => {
+			const {
+				value,
+				errors
+			} = this.form.controls.asyncValidateField;
 
-	  /* NOTE
-	  * 	We must return Observable that actually does the validation in order to let Angular handle
-	  * 	unsubscribing from that observable.
-	  * */
-	  return this.someFieldValidator()()
-		.pipe(tap(res => {
-		  //Cache value that was validated
-		  asyncValidateFieldCache = value.valueOf();
-
-		  if (!res) {
-			return;
-		  }
-
-		  /* Debug to indicate that some call returned Error */
-		  this.addMessage(`Validation of form returned with error: ${JSON.stringify(res)}`);
-		  this.addMessage(`Field that was used to validate shouldn't have errors set. Errors: ${JSON.stringify(errors)}`);
-		}));
-	}
-  }
-
-  /**
-   * Validates some control for 5 seconds.
-   * @private
-   */
-  private someFieldValidator() {
-	/*TODO Add descriptions*/
-	return (): Observable<ValidationErrors | null> => {
-	  const validatorCall = new ValidatorCall({
-		timestamp: Date.now(),
-		callIdx: this.currCallIdx,
-		message: '',
-		state: 'PENDING',
-	  });
-
-	  this.addCall(validatorCall);
-	  this.currCallIdx += 1;
-
-	  return of(null)
-		.pipe(
-		  switchMap(() => {
-			let secondsToWait = 5;
-			const totalWaitTime = secondsToWait;
-
-			return interval(1000)
-			  .pipe(
-				map(() => secondsToWait),
-				tap((count) => this.updateCall(validatorCall, { message: `Waiting ${count} seconds...` })),
-				tap(() => secondsToWait -= 1),
-				take(totalWaitTime),
-				bufferCount(totalWaitTime),
-			  );
-		  }),
-		  map(() => {
-			//Mock some validation fail
-			if (validatorCall.callIdx === 7 || validatorCall.callIdx == 10) {
-			  this.updateCall(validatorCall, {
-				message: '',
-				state: 'COMPLETED',
-				result: { error: `error on call: ${validatorCall.callIdx}` },
-			  });
-			} else {
-			  validatorCall.result = null;
-			  this.updateCall(validatorCall, {
-				message: '',
-				state: 'COMPLETED',
-				result: null,
-			  });
+			// Trigger validation only when target field changes.
+			if (value === asyncValidateFieldCache) {
+				return of(null);
 			}
 
-			return validatorCall.result ?? null;
-		  }),
-		  finalize(() => validatorCall.result === undefined ? this.updateCall(validatorCall, { state: 'ABORTED', message: 'Aborted' }) : undefined),
-		);
-	};
-  }
+			/* NOTE
+			* 	We must return Observable that actually does the validation in order to let Angular handle
+			* 	unsubscribing from that observable.
+			* */
+			return this.someFieldValidator()()
 
-  /* DEBUG ONLY THINGS FROM HERE ON*/
-  private currCallIdx = 0;
-  private calls$ = signal<IValidatorCall[]>([]);
-  private messages$ = signal<ISimpleMessage[]>([]);
+				.pipe(tap(res => {
+					//Cache value that was validated
+					asyncValidateFieldCache = value.valueOf();
 
-  protected debugStream$ = computed(() => {
-	const stream: MessageTypes[] = [...this.calls$(), ...this.messages$()];
-	stream.sort((a, b) => a.timestamp - b.timestamp);
+					if (!res) {
+						return;
+					}
 
-	return stream;
-  });
+					/* Debug to indicate that some call returned Error */
+					this.addMessage(`Validation of form returned with error: ${JSON.stringify(res)}`);
+					this.addMessage(`Field that was used to validate shouldn't have errors set. Errors: ${JSON.stringify(errors)}`);
+				}));
+		}
+	}
 
-  protected isAnyCallPending$ = computed(() => {
-	return this.debugStream$()
-		.filter((el): el is ValidatorCall => el instanceof ValidatorCall)
-		.some(el => el.result === undefined && el.state !== 'ABORTED')
-  });
+	/**
+	 * Validates some control for 5 seconds.
+	 * @private
+	 */
+	private someFieldValidator() {
+		/*TODO Add descriptions*/
+		return (): Observable<ValidationErrors | null> => {
+			const validatorCall = new ValidatorCall({
+				timestamp: Date.now(),
+				callIdx: this.currCallIdx,
+				message: '',
+				state: 'PENDING',
+			});
 
-  private addCall(call: IValidatorCall) {
-	this.calls$.update(calls => {
-	  calls.push(call);
-	  return calls;
+			this.addCall(validatorCall);
+			this.currCallIdx += 1;
+
+			return of(null)
+				.pipe(
+					switchMap(() => {
+						let secondsToWait = 5;
+						const totalWaitTime = secondsToWait;
+
+						return interval(1000)
+							.pipe(
+								map(() => secondsToWait),
+								tap((count) => this.updateCall(validatorCall, { message: `Waiting ${count} seconds...` })),
+								tap(() => secondsToWait -= 1),
+								take(totalWaitTime),
+								bufferCount(totalWaitTime),
+							);
+					}),
+					map(() => {
+						//Mock some validation fail
+						if (validatorCall.callIdx === 7 || validatorCall.callIdx == 10) {
+							this.updateCall(validatorCall, {
+								message: '',
+								state: 'COMPLETED',
+								result: { error: `error on call: ${validatorCall.callIdx}` },
+							});
+						} else {
+							validatorCall.result = null;
+							this.updateCall(validatorCall, {
+								message: '',
+								state: 'COMPLETED',
+								result: null,
+							});
+						}
+
+						return validatorCall.result ?? null;
+					}),
+					finalize(() => validatorCall.result === undefined ? this.updateCall(validatorCall, {
+						state: 'ABORTED',
+						message: 'Aborted'
+					}) : undefined),
+				);
+		};
+	}
+
+	/* DEBUG ONLY THINGS FROM HERE ON*/
+	private currCallIdx = 0;
+	private calls$ = signal<IValidatorCall[]>([]);
+	private messages$ = signal<ISimpleMessage[]>([]);
+
+	protected debugStream$ = computed(() => {
+		const stream: MessageTypes[] = [...this.calls$(), ...this.messages$()];
+		stream.sort((a, b) => a.timestamp - b.timestamp);
+
+		return stream;
 	});
-  }
 
-  private updateCall(call: IValidatorCall, updates: Partial<IValidatorCall>): IValidatorCall {
-	Object.assign(call, updates);
-	this.calls$.update((calls) => [...calls]);
-	return call;
-  }
-
-  private addMessage(message: string) {
-	this.messages$.update((messages) => {
-	  messages.push(new SimpleMessage({ timestamp: Date.now(), message }));
-	  return messages;
+	protected isAnyCallPending$ = computed(() => {
+		return this.debugStream$()
+			.filter((el): el is ValidatorCall => el instanceof ValidatorCall)
+			.some(el => el.result === undefined && el.state !== 'ABORTED')
 	});
-  }
+
+	private addCall(call: IValidatorCall) {
+		this.calls$.update(calls => {
+			calls.push(call);
+			return calls;
+		});
+	}
+
+	private updateCall(call: IValidatorCall, updates: Partial<IValidatorCall>): IValidatorCall {
+		Object.assign(call, updates);
+		this.calls$.update((calls) => [...calls]);
+		return call;
+	}
+
+	private addMessage(message: string) {
+		this.messages$.update((messages) => {
+			messages.push(new SimpleMessage({ timestamp: Date.now(), message }));
+			return messages;
+		});
+	}
 }
 
 export interface Message {
-  timestamp: number
+	timestamp: number
 }
 
 export type MessageTypes = ValidatorCall | SimpleMessage;
@@ -364,34 +366,34 @@ export type MessageTypes = ValidatorCall | SimpleMessage;
 export type CallState = 'PENDING' | 'COMPLETED' | 'ABORTED';
 
 export interface IValidatorCall extends Message {
-  callIdx: number
-  message: string
-  result?: ValidationErrors | null
-  subscription?: Subscription
-  state: CallState
+	callIdx: number
+	message: string
+	result?: ValidationErrors | null
+	subscription?: Subscription
+	state: CallState
 }
 
 export interface ISimpleMessage extends Message {
-  message: string
+	message: string
 }
 
 export class ValidatorCall implements IValidatorCall {
-  callIdx!: number;
-  message!: string;
-  result: ValidationErrors | null | undefined;
-  timestamp!: number;
-  state!: CallState;
+	callIdx!: number;
+	message!: string;
+	result: ValidationErrors | null | undefined;
+	timestamp!: number;
+	state!: CallState;
 
-  constructor(dto: IValidatorCall) {
-	Object.assign(this, dto);
-  }
+	constructor(dto: IValidatorCall) {
+		Object.assign(this, dto);
+	}
 }
 
 export class SimpleMessage implements ISimpleMessage {
-  message!: string;
-  timestamp!: number;
+	message!: string;
+	timestamp!: number;
 
-  constructor(dto: ISimpleMessage) {
-	Object.assign(this, dto);
-  }
+	constructor(dto: ISimpleMessage) {
+		Object.assign(this, dto);
+	}
 }
