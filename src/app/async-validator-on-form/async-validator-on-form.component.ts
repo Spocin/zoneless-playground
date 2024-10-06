@@ -69,6 +69,11 @@ import { AsyncPipe, JsonPipe, NgClass } from "@angular/common";
               <span class="debug-panel__item__content"> {{ saving$() }}</span>
           </div>
 
+          <div class="debug-panel__item">
+              <span class="debug-panel__item__label">Whole form status:&nbsp;</span>
+              <span class="debug-panel__item__content"> {{ form.statusChanges | async }}</span>
+          </div>
+
           <div class="debug-panel__stream">
               <span>
 				  @let areCallsPending = isAnyCallPending$() ;
@@ -188,7 +193,7 @@ export default class AsyncValidatorOnFormComponent {
   }, { asyncValidators: [this.wholeFormAsyncValidator()] });
 
   protected async onSave() {
-	const wholeFormValidationRes = await this.wholeFormAsyncValidator()(this.form);
+	const wholeFormValidationRes = await this.wholeFormAsyncValidator()();
 	console.log(`Form has been validated to with result: ${JSON.stringify(wholeFormValidationRes)}`);
 
 	if (wholeFormValidationRes) {
@@ -197,22 +202,60 @@ export default class AsyncValidatorOnFormComponent {
   }
 
   /**
+   * NOTE
+   * No `this` context is available here as this function is passed.
+   *
+   * FIXME I found no way to create validator on whole form that will unsubscribe only when targeted control changes.
+   * FIXME #1 Call validator every time form changes.
+   * 	      This will make a lot of redundant calls.
+   *
+   * FIXME #2 Cache the value of the targeted control (only after validator returned some result) and trigger
+   * 		  validation only new value does not match cached one.
+   *		  If cache was to be updated before call to validator it might return incorrect state. Validation might
+   *		  get interrupted but cached value was already updated. So any feature calls will not even trigger
+   *		  validation.
+   *
+   * TODO Make this work
+   *
    * Validates {@link asyncValidateField};
    * @private
    */
   private wholeFormAsyncValidator() {
-	return (control: AbstractControl): Observable<ValidationErrors | null> => {
-	  //Couldn't figure out better way to keep type system. It is loose end.
-	  const asyncValidateField = (control as unknown as typeof this.form).controls.asyncValidateField;
+	let asyncValidateFieldCache: typeof this.form.value.asyncValidateField | null = null;
 
+	/**
+	 * NOTE
+	 *	Despite this function being passed,
+	 * `this` context is available here as arrow functions have their own bindings to `this`.
+	 */
+	return (): Observable<ValidationErrors | null> => {
+	  const {
+		value,
+		errors
+	  } = this.form.controls.asyncValidateField;
+
+	  // Trigger validation only when target field changes.
+	  if (value === asyncValidateFieldCache) {
+		this.addMessage(`Form value didn't change. No need to revalidate.`)
+		return of(null);
+	  }
+
+	  /* NOTE
+	  * 	We must return Observable that actually does the validation in order to let Angular handle
+	  * 	unsubscribing from that observable.
+	  * */
 	  return this.someFieldValidator()()
 		.pipe(tap(res => {
+		  //Cache value that was validated
+		  asyncValidateFieldCache = value.valueOf();
+
 		  if (!res) {
 			return;
 		  }
 
+		  /* Debug to indicate that some call returned Error */
 		  this.addMessage(`Validation of form returned with error: ${JSON.stringify(res)}`);
-		  this.addMessage(`Field that was used to validate shouldn't have errors set. Errors: ${JSON.stringify(asyncValidateField.errors)}`);
+		  this.addMessage(`Field that was used to validate shouldn't have errors set. Errors: ${JSON.stringify(errors)}`);
 		}));
 	}
   }
@@ -222,6 +265,7 @@ export default class AsyncValidatorOnFormComponent {
    * @private
    */
   private someFieldValidator() {
+	/*TODO Add descriptions*/
 	return (): Observable<ValidationErrors | null> => {
 	  const validatorCall = new ValidatorCall({
 		timestamp: Date.now(),
@@ -287,7 +331,7 @@ export default class AsyncValidatorOnFormComponent {
   protected isAnyCallPending$ = computed(() => {
 	return this.debugStream$()
 		.filter((el): el is ValidatorCall => el instanceof ValidatorCall)
-		.some(el => el.result === undefined)
+		.some(el => el.result === undefined && el.state !== 'ABORTED')
   });
 
   private addCall(call: IValidatorCall) {
