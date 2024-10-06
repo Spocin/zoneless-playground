@@ -3,21 +3,8 @@ import { MatButton } from "@angular/material/button";
 import { MatError, MatFormField, MatLabel } from "@angular/material/form-field";
 import { MatInput } from "@angular/material/input";
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators, } from "@angular/forms";
-import {
-  bufferCount,
-  finalize,
-  interval,
-  map,
-  Observable,
-  of,
-  Subject,
-  Subscription,
-  switchMap, take,
-  takeUntil, takeWhile,
-  tap
-} from "rxjs";
+import { bufferCount, finalize, interval, map, Observable, of, Subscription, switchMap, take, tap } from "rxjs";
 import { AsyncPipe, JsonPipe, NgClass } from "@angular/common";
-import { FormatMessagePipe } from "../pipes/format-message.pipe";
 
 @Component({
   selector: 'app-async-validator-on-form',
@@ -32,7 +19,6 @@ import { FormatMessagePipe } from "../pipes/format-message.pipe";
 	MatError,
 	JsonPipe,
 	NgClass,
-	FormatMessagePipe,
   ],
   template: `
       <form class="form">
@@ -94,7 +80,7 @@ import { FormatMessagePipe } from "../pipes/format-message.pipe";
 			  </span>
               @for (call of debugStream$(); let ev = $even; track $index) {
                   <code class="debug-panel__stream__record"
-                        [ngClass]="{ 'debug-panel__stream__record--even': ev }">{{ call.formatPrint() | json }}</code>
+                        [ngClass]="{ 'debug-panel__stream__record--even': ev }">{{ call | json }}</code>
               }
           </div>
       </div>
@@ -243,7 +229,6 @@ export default class AsyncValidatorOnFormComponent {
 		timestamp: Date.now(),
 		callIdx: this.currCallIdx,
 		message: '',
-		abort$: new Subject(),
 	  });
 
 	  this.addCall(validatorCall);
@@ -282,20 +267,8 @@ export default class AsyncValidatorOnFormComponent {
 			return validatorCall.result ?? null;
 		  }),
 		  finalize(() => validatorCall.result ? undefined : this.updateCall(validatorCall, { message: 'Aborted'})),
-		  takeUntil(validatorCall.abort$),
 		);
 	};
-  }
-
-  private abortAllPendingCalls() {
-	const calls = this.calls$();
-
-	calls
-		.filter(call => call.abort$.complete())
-		.forEach(pendingCall => {
-		  pendingCall.abort$.next();
-		  pendingCall.abort$.complete();
-		});
   }
 
   /* DEBUG ONLY THINGS FROM HERE ON*/
@@ -339,8 +312,6 @@ export default class AsyncValidatorOnFormComponent {
 
 export interface Message {
   timestamp: number
-
-  formatPrint(): Omit<this, keyof this>;
 }
 
 export type MessageTypes = ValidatorCall | SimpleMessage;
@@ -349,37 +320,21 @@ export interface IValidatorCall extends Message {
   callIdx: number
   message: string
   result?: ValidationErrors | null
-  abort$: Subject<void>
   subscription?: Subscription
-
-  formatPrint(): Omit<this, 'abort$' | 'formatPrint'>
 }
 
 export interface ISimpleMessage extends Message {
   message: string
-
-  formatPrint(): Omit<this, 'formatPrint'>
 }
 
 export class ValidatorCall implements IValidatorCall {
   callIdx!: number;
   message!: string;
   result: ValidationErrors | null | undefined;
-  abort$!: Subject<void>
   timestamp!: number;
 
-  constructor(dto: Omit<IValidatorCall, 'formatPrint'>) {
+  constructor(dto: IValidatorCall) {
 	Object.assign(this, dto);
-  }
-
-  public formatPrint(): Omit<this, 'abort$' | 'formatPrint'> {
-	const {
-	  abort$,
-	  formatPrint,
-	  ...rest
-	} = this;
-
-	return rest;
   }
 }
 
@@ -387,16 +342,7 @@ export class SimpleMessage implements ISimpleMessage {
   message!: string;
   timestamp!: number;
 
-  constructor(dto: Omit<ISimpleMessage, 'formatPrint'>) {
+  constructor(dto: ISimpleMessage) {
 	Object.assign(this, dto);
-  }
-
-  formatPrint(): Omit<this, 'formatPrint'> {
-	const {
-	  formatPrint,
-	  ...rest
-	} = this;
-
-	return rest;
   }
 }
